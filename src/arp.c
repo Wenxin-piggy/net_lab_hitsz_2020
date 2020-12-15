@@ -44,7 +44,44 @@ arp_buf_t arp_buf;
  */
 void arp_update(uint8_t *ip, uint8_t *mac, arp_state_t state)
 {
-    // TODO
+    time_t t_now = time(NULL);//获取当前的时间
+    for(int i = 0;i < ARP_MAX_ENTRY;i ++){
+        t_now = time(NULL);
+        if((arp_table[i].timeout - t_now) > ARP_TIMEOUT_SEC){
+            //查看是否有超时的表项
+            arp_table[i].state = ARP_INVALID;
+        }
+    }
+    int flag = 0;
+    for(int i = 0;i < ARP_MAX_ENTRY;i ++){
+        if(arp_table[i].state == ARP_INVALID){
+            t_now = time(NULL);
+            memcpy(arp_table[i].ip,ip,NET_IP_LEN);
+            memcpy(arp_table[i].mac,mac,NET_MAC_LEN);
+            arp_table[i].state = state;
+            arp_table[i].timeout = t_now;
+            flag = 1;
+        }
+    }
+    //没有无效的表项，找时间最长的哪一项
+    if(flag == 0){
+        int k = 0;
+        int max = 0;
+        for(int i = 0;i < ARP_MAX_ENTRY;i ++){
+            t_now = time(NULL);
+            if((t_now - arp_table[i].timeout) > max){
+                max = t_now - arp_table[i].timeout;
+                k = i;
+            }
+        }
+        //已经选出最大的了
+        memcpy(arp_table[k].ip,ip,NET_IP_LEN);
+        memcpy(arp_table[k].mac,mac,NET_MAC_LEN);
+        arp_table[k].state = state;
+        arp_table[k].timeout = t_now;
+    }
+
+
 
 }
 
@@ -106,7 +143,36 @@ static void arp_req(uint8_t *target_ip)
  */
 void arp_in(buf_t *buf)
 {
-    // TODO
+    arp_pkt_t *arp = (arp_pkt_t *)buf -> data;
+    int opcode = swap16(arp -> opcode);
+    if(arp -> hw_type != swap16(ARP_HW_ETHER)
+    || arp -> pro_type != swap16(ARP_HW_ETHER)
+    || arp -> hw_len != NET_MAC_LEN
+    || arp -> pro_len != NET_IP_LEN
+    || (opcode != ARP_REQUEST && opcode != ARP_REPLY)
+    )
+    return ;
+    arp_update(arp -> sender_ip,arp -> sender_mac, ARP_VALID);
+    if(arp_buf.valid == 1){
+        for(int i = 0;i < ARP_MAX_ENTRY;i ++){
+            if(arp_table[i].state == ARP_VALID){
+                if(arp_table[i].ip == arp_buf.ip){
+                    ethernet_out(&arp_buf.buf,arp_table[i].mac,NET_PROTOCOL_ARP);
+                }
+            }
+        }
+    }
+    else{
+        if(opcode == ARP_REPLY){
+            buf_t buf_new;
+            buf_init(&buf_new,sizeof(arp_pkt_t));
+            arp_pkt_t *arp_new = (arp_pkt_t *)(&buf_new) -> data;
+            *arp_new = arp_init_pkt;
+            memcpy(arp_new ->target_ip,arp -> sender_ip,NET_IP_LEN);
+            memcpy(arp_new ->target_mac,arp -> target_mac,NET_MAC_LEN);
+            ethernet_out(&buf_new,arp -> target_mac,NET_PROTOCOL_ARP);
+        }
+    }
     
 }
 
@@ -123,7 +189,28 @@ void arp_in(buf_t *buf)
  */
 void arp_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol)
 {
-    // TODO
+    //根据IP地址来查找ARP表
+    int flag = 0;
+    for(int i = 0;i < ARP_MAX_ENTRY;i ++){
+        if(memcmp(ip,arp_table[i].ip,NET_IP_LEN) == 0){
+            if(arp_table[i].state = ARP_VALID){
+                //能找到该IP地址对应的MAC地址，将该数据包直接发给ethernet层
+                flag = 1;
+                ethernet_out(buf,arp_table[i].mac,NET_PROTOCOL_ARP);
+            }
+        }
+    }
+    //没有找到，发送request报文
+    if(flag == 0){
+        arp_req(net_if_ip);
+        if(protocol == NET_PROTOCOL_IP){
+            //需要将来自ip层的数据包缓存到arp_buf中
+            arp_buf.buf = *buf;
+            memcpy(&arp_buf.ip,ip,NET_IP_LEN);
+            arp_buf.protocol = protocol;
+            arp_buf.valid = 1;
+        }
+    }
 
 }
 

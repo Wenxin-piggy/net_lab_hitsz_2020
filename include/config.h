@@ -12,7 +12,7 @@
     }                     //自定义网卡mac地址
 #define TARGET_REQUEST_MAC                          \
     {                                       \
-        0x00,0x00,0x00,0x00,0x00,0x00       \
+        0xff,0xff,0xff,0xff,0xff,0xff       \
     }
 
 #define ETHERNET_MTU 1500 //以太网最大传输单元
