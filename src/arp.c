@@ -72,7 +72,18 @@ static uint8_t *arp_lookup(uint8_t *ip)
  */
 static void arp_req(uint8_t *target_ip)
 {
-    // TODO
+    //init 初始化
+    buf_init(&txbuf, sizeof(arp_pkt_t));
+
+    //填写ARP报头
+    arp_pkt_t *arp = (arp_pkt_t *)(&txbuf) -> data;
+    *arp = arp_init_pkt;
+    memcpy(arp -> target_ip,target_ip,NET_IP_LEN);
+    arp -> opcode = swap16(ARP_REQUEST);
+
+    //将数据发送到ethernet层
+    arp_out(&txbuf,target_ip,NET_PROTOCOL_IP);
+
 
 }
 
