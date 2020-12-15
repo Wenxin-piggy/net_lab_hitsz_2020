@@ -13,6 +13,7 @@ typedef enum net_protocol
 
 static uint8_t net_if_mac[] = DRIVER_IF_MAC;
 static uint8_t net_if_ip[] = DRIVER_IF_IP;
+static uint8_t request_mac[] = TARGET_REQUEST_MAC;
 
 #define NET_MAC_LEN (6)                                     //mac地址长度
 #define NET_IP_LEN (4)                                      //ip地址长度

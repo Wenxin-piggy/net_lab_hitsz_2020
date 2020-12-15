@@ -82,7 +82,7 @@ static void arp_req(uint8_t *target_ip)
     arp -> opcode = swap16(ARP_REQUEST);
 
     //将数据发送到ethernet层
-    arp_out(&txbuf,target_ip,NET_PROTOCOL_IP);
+    ethernet_out(&txbuf,request_mac,NET_PROTOCOL_ARP);
 
 
 }
