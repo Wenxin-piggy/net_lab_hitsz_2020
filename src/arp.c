@@ -83,8 +83,6 @@ void arp_update(uint8_t *ip, uint8_t *mac, arp_state_t state)
         arp_table[k].timeout = t_now;
     }
 
-
-
 }
 
 /**
@@ -114,7 +112,7 @@ static void arp_req(uint8_t *target_ip)
     //init 初始化
     buf_init(&txbuf, sizeof(arp_pkt_t));
 
-    //填写ARP报头
+    //填写ARP报头s
     arp_pkt_t *arp = (arp_pkt_t *)(&txbuf) -> data;
     *arp = arp_init_pkt;
     memcpy(arp -> target_ip,target_ip,NET_IP_LEN);
@@ -125,6 +123,17 @@ static void arp_req(uint8_t *target_ip)
 
 
 }
+// static void arp_req(uint8_t *target_ip)
+// {
+//     // TODO
+//     buf_init(&txbuf, sizeof(arp_pkt_t));
+//     arp_pkt_t *head = (arp_pkt_t *)(txbuf.data);
+//     *head = arp_init_pkt;
+//     head->opcode = swap16(ARP_REQUEST);
+//     memcpy(head->target_ip, target_ip, NET_IP_LEN);
+//     // printBuf(&txbuf);
+//     ethernet_out(&txbuf, request_mac, NET_PROTOCOL_ARP);
+// }
 
 /**
  * @brief 处理一个收到的数据包
@@ -145,7 +154,6 @@ static void arp_req(uint8_t *target_ip)
  */
 void arp_in(buf_t *buf)
 {
-    printf("---------------1----------\n");
     arp_pkt_t *arp = (arp_pkt_t *)buf -> data;
     int opcode = swap16(arp -> opcode);
     if(arp -> hw_type != swap16(ARP_HW_ETHER)
@@ -155,30 +163,31 @@ void arp_in(buf_t *buf)
     || (opcode != ARP_REQUEST && opcode != ARP_REPLY)
     )
     return ;
-    printf("------------2-----------\n");
     arp_update(arp -> sender_ip,arp -> sender_mac, ARP_VALID);
-    printf("get in -----------------------\n");
     if(arp_buf.valid == 1){
         for(int i = 0;i < ARP_MAX_ENTRY;i ++){
             if(arp_table[i].state == ARP_VALID){
-                printf("get in 000001\n");
-                if(memcmp(arp_table[i].ip,arp_buf.ip,NET_IP_LEN)){
-                    printf("get in\n");
+                if(memcmp(arp_table[i].ip,arp_buf.ip,NET_IP_LEN) == 0){
                     arp_buf.valid = 0;
-                    ethernet_out(&arp_buf.buf,arp_table[i].mac,NET_PROTOCOL_ARP);
+                    ethernet_out(&arp_buf.buf,arp_table[i].mac,arp_buf.protocol);
+                    return;
                 }
+
             }
         }
     }
     else{
-        if(opcode == ARP_REPLY){
-            buf_t buf_new;
-            buf_init(&buf_new,sizeof(arp_pkt_t));
-            arp_pkt_t *arp_new = (arp_pkt_t *)(&buf_new) -> data;
-            *arp_new = arp_init_pkt;
-            memcpy(arp_new ->target_ip,arp -> sender_ip,NET_IP_LEN);
-            memcpy(arp_new ->target_mac,arp -> target_mac,NET_MAC_LEN);
-            ethernet_out(&buf_new,arp -> target_mac,NET_PROTOCOL_ARP);
+        if(opcode == ARP_REQUEST){
+            if(memcmp(arp -> target_ip,net_if_ip,NET_IP_LEN) == 0){
+                static buf_t buf_new;
+                buf_init(&buf_new, sizeof(arp_pkt_t));
+                arp_pkt_t *arp_new = (arp_pkt_t *)(&buf_new) -> data;
+                *arp_new = arp_init_pkt;
+                arp_new->opcode = swap16(ARP_REPLY);
+                memcpy(arp_new->target_ip, arp->sender_ip, NET_IP_LEN);
+                memcpy(arp_new->target_mac, arp->sender_mac, NET_MAC_LEN);
+                ethernet_out(&buf_new, arp_new->target_mac, NET_PROTOCOL_ARP);
+            }
         }
     }
     
@@ -198,27 +207,26 @@ void arp_in(buf_t *buf)
 void arp_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol)
 {
     //根据IP地址来查找ARP表
-    int flag = 0;
     for(int i = 0;i < ARP_MAX_ENTRY;i ++){
         if(memcmp(ip,arp_table[i].ip,NET_IP_LEN) == 0){
             if(arp_table[i].state == ARP_VALID){
                 //能找到该IP地址对应的MAC地址，将该数据包直接发给ethernet层
-                flag = 1;
-                ethernet_out(buf,arp_table[i].mac,NET_PROTOCOL_ARP);
+                ethernet_out(buf,arp_table[i].mac,protocol);
+                return ;
             }
         }
     }
     //没有找到，发送request报文
-    if(flag == 0){
-        arp_req(net_if_ip);
-        if(protocol == NET_PROTOCOL_IP){
-            //需要将来自ip层的数据包缓存到arp_buf中
-            arp_buf.buf = *buf;
-            memcpy(&arp_buf.ip,ip,NET_IP_LEN);
-            arp_buf.protocol = protocol;
-            arp_buf.valid = 1;
-        }
+    
+    arp_req(ip);
+    if(protocol == NET_PROTOCOL_IP){
+        //需要将来自ip层的数据包缓存到arp_buf中
+        arp_buf.buf = *buf;
+        memcpy(&arp_buf.ip,ip,NET_IP_LEN);
+        arp_buf.protocol = protocol;
+        arp_buf.valid = 1;
     }
+    
 
 }
 
