@@ -27,6 +27,7 @@ void ethernet_in(buf_t *buf)
 	else if(p[0] == 0x08 && p[1] == 0x06){
 		//arp
 		buf_remove_header(buf,14);
+		printf("get arp_in to arp_in\n");
 		arp_in(buf);
 	}
     
