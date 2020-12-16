@@ -156,7 +156,7 @@ void arp_in(buf_t *buf)
     if(arp_buf.valid == 1){
         for(int i = 0;i < ARP_MAX_ENTRY;i ++){
             if(arp_table[i].state == ARP_VALID){
-                if(arp_table[i].ip == arp_buf.ip){
+                if(memcmp(arp_table[i].ip,arp_buf.ip,NET_IP_LEN)){
                     ethernet_out(&arp_buf.buf,arp_table[i].mac,NET_PROTOCOL_ARP);
                 }
             }
