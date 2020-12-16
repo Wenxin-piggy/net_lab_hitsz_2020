@@ -145,6 +145,7 @@ static void arp_req(uint8_t *target_ip)
  */
 void arp_in(buf_t *buf)
 {
+    printf("---------------1----------\n");
     arp_pkt_t *arp = (arp_pkt_t *)buf -> data;
     int opcode = swap16(arp -> opcode);
     if(arp -> hw_type != swap16(ARP_HW_ETHER)
@@ -154,6 +155,7 @@ void arp_in(buf_t *buf)
     || (opcode != ARP_REQUEST && opcode != ARP_REPLY)
     )
     return ;
+    printf("------------2-----------\n");
     arp_update(arp -> sender_ip,arp -> sender_mac, ARP_VALID);
     printf("get in -----------------------\n");
     if(arp_buf.valid == ARP_VALID){
