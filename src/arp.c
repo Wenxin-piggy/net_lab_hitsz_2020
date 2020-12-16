@@ -49,6 +49,7 @@ void arp_update(uint8_t *ip, uint8_t *mac, arp_state_t state)
         t_now = time(NULL);
         if((arp_table[i].timeout - t_now) > ARP_TIMEOUT_SEC){
             //查看是否有超时的表项
+            printf("i = %d\nchange to invalid\n",i);
             arp_table[i].state = ARP_INVALID;
         }
     }
