@@ -155,7 +155,7 @@ void arp_in(buf_t *buf)
     )
     return ;
     arp_update(arp -> sender_ip,arp -> sender_mac, ARP_VALID);
-
+    printf("get in -----------------------\n");
     if(arp_buf.valid == ARP_VALID){
         printf("get in000000\n");
         for(int i = 0;i < ARP_MAX_ENTRY;i ++){
