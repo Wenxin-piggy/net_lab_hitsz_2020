@@ -62,6 +62,7 @@ void arp_update(uint8_t *ip, uint8_t *mac, arp_state_t state)
             arp_table[i].state = state;
             arp_table[i].timeout = t_now;
             flag = 1;
+            break;
         }
     }
     //没有无效的表项，找时间最长的哪一项
