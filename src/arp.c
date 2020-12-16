@@ -149,7 +149,7 @@ void arp_in(buf_t *buf)
     arp_pkt_t *arp = (arp_pkt_t *)buf -> data;
     int opcode = swap16(arp -> opcode);
     if(arp -> hw_type != swap16(ARP_HW_ETHER)
-    || arp -> pro_type != swap16(ARP_HW_ETHER)
+    || arp -> pro_type != swap16(NET_PROTOCOL_ARP)
     || arp -> hw_len != NET_MAC_LEN
     || arp -> pro_len != NET_IP_LEN
     || (opcode != ARP_REQUEST && opcode != ARP_REPLY)
