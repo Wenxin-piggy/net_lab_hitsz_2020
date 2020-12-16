@@ -196,7 +196,7 @@ void arp_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol)
     int flag = 0;
     for(int i = 0;i < ARP_MAX_ENTRY;i ++){
         if(memcmp(ip,arp_table[i].ip,NET_IP_LEN) == 0){
-            if(arp_table[i].state = ARP_VALID){
+            if(arp_table[i].state == ARP_VALID){
                 //能找到该IP地址对应的MAC地址，将该数据包直接发给ethernet层
                 flag = 1;
                 ethernet_out(buf,arp_table[i].mac,NET_PROTOCOL_ARP);
