@@ -155,9 +155,12 @@ void arp_in(buf_t *buf)
     )
     return ;
     arp_update(arp -> sender_ip,arp -> sender_mac, ARP_VALID);
+
     if(arp_buf.valid == 1){
+        printf("get in000000\n");
         for(int i = 0;i < ARP_MAX_ENTRY;i ++){
             if(arp_table[i].state == ARP_VALID){
+                printf("get in 000001\n");
                 if(memcmp(arp_table[i].ip,arp_buf.ip,NET_IP_LEN)){
                     printf("get in\n");
                     arp_buf.valid = 0;
@@ -213,6 +216,7 @@ void arp_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol)
             memcpy(&arp_buf.ip,ip,NET_IP_LEN);
             arp_buf.protocol = protocol;
             arp_buf.valid = 1;
+            printf("test\n");
         }
     }
 
