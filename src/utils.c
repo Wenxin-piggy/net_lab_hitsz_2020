@@ -82,6 +82,23 @@ void buf_copy(buf_t *dst, buf_t *src)
  */
 uint16_t checksum16(uint16_t *buf, int len)
 {
-    // TODO
-        
+    uint16_t ans = 0;
+    uint32_t temp = 0;
+    uint16_t * temp_buf = buf;
+    for(int i = len;i > 1;i = i - sizeof(uint16_t)){
+        temp += (uint32_t)(*temp_buf);
+        temp_buf ++;
+    }
+    //将高16位与低16 位相加
+    uint32_t a = (temp >> 16)&(0xffff);//得到高的16位
+    uint32_t b = temp & 0xffff; //得到低16位
+    temp = a + b;   //将高的16位和低的16位直接相加
+
+    //再把这次假发的最高位加到低十六位
+    temp = (temp & 0xffff) + ((temp >> 16)&(0xffff));
+
+    ans = ~(temp&0xffff);
+
+    //将上述和取反
+    return ans;
 }
