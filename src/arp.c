@@ -49,7 +49,6 @@ void arp_update(uint8_t *ip, uint8_t *mac, arp_state_t state)
         t_now = time(NULL);
         if((t_now - arp_table[i].timeout) > ARP_TIMEOUT_SEC){
             //查看是否有超时的表项
-            printf("i = %d\nchange to invalid\n",i);
             arp_table[i].state = ARP_INVALID;
         }
     }
@@ -123,17 +122,7 @@ static void arp_req(uint8_t *target_ip)
 
 
 }
-// static void arp_req(uint8_t *target_ip)
-// {
-//     // TODO
-//     buf_init(&txbuf, sizeof(arp_pkt_t));
-//     arp_pkt_t *head = (arp_pkt_t *)(txbuf.data);
-//     *head = arp_init_pkt;
-//     head->opcode = swap16(ARP_REQUEST);
-//     memcpy(head->target_ip, target_ip, NET_IP_LEN);
-//     // printBuf(&txbuf);
-//     ethernet_out(&txbuf, request_mac, NET_PROTOCOL_ARP);
-// }
+
 
 /**
  * @brief 处理一个收到的数据包
