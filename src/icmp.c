@@ -19,12 +19,47 @@
  */
 void icmp_in(buf_t *buf, uint8_t *src_ip)
 {
-    // TODO
+    //收到一个待处理的包
+    if(sizeof(buf) < sizeof(icmp_hdr_t)){
+        //buf长度是否小于icmp头部长度
+        return ;
+    }
+
+    icmp_hdr_t *icmp_header = (icmp_hdr_t *)buf->data;
+
+    uint16_t checksum_temp = icmp_header->checksum;
+    icmp_header->checksum = 0;
+    if (checksum16((uint16_t *)icmp_header, buf->len) != checksum_temp){
+        return;
+    }
+
+    icmp_header->checksum = checksum_temp;
+
+    //查看该报文的ICMP类型是否为回显请求
+    if(icmp_header ->type == ICMP_TYPE_ECHO_REQUEST){
+        buf_init(&txbuf,buf -> len);
+        memcpy(txbuf.data, buf->data, buf->len);
+
+        icmp_hdr_t * header = (icmp_hdr_t * )(&txbuf) -> data;
+        header -> type = ICMP_TYPE_ECHO_REPLY;
+
+        header->code = 0;
+        
+        header->id = icmp_header->id;
+        
+        header->seq = icmp_header->seq;
+        header->checksum = 0;
+        header->checksum = checksum16((uint16_t *)header, txbuf.len);
+        ip_out(&txbuf, src_ip, NET_PROTOCOL_ICMP);
+    }
+
+
+
 }
 
 /**
  * @brief 发送icmp不可达
- *        你需要首先调用buf_init初始化buf，长度为ICMP头部 + IP头部 + 原始IP数据报中的前8字节 
+ *        你需要首先调用buf_init初始化buf，
  *        填写ICMP报头首部，类型值为目的不可达
  *        填写校验和
  *        将封装好的ICMP数据报发送到IP层。
@@ -35,6 +70,20 @@ void icmp_in(buf_t *buf, uint8_t *src_ip)
  */
 void icmp_unreachable(buf_t *recv_buf, uint8_t *src_ip, icmp_code_t code)
 {
-    // TODO
-    
+    //长度为ICMP头部 + IP头部 + 原始IP数据报中的前8字节 
+    int buf_len = sizeof(icmp_hdr_t) + sizeof(ip_hdr_t) + 8;
+    buf_init(&txbuf,buf_len);
+
+    //填写ICMP报头首部，类型值为目的不可达
+    icmp_hdr_t * header = (icmp_hdr_t * )(&txbuf) -> data;
+
+    header -> type = ICMP_TYPE_UNREACH;
+    header -> code = code;
+    header -> id = 0;
+    header ->seq = 0;
+    header -> checksum = 0;
+
+    memcpy(txbuf.data + sizeof(icmp_hdr_t),recv_buf->data,sizeof(ip_hdr_t) + 8);
+    header->checksum = checksum16((uint16_t *)header, txbuf.len);
+    ip_out(&txbuf, src_ip, NET_PROTOCOL_ICMP);
 }
