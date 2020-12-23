@@ -26,31 +26,31 @@ static udp_entry_t udp_table[UDP_MAX_HANDLER];
  * @param dest_ip 目的ip地址
  * @return uint16_t 伪校验和
  */
-static uint16_t udp_checksum(buf_t *buf, uint8_t *src_ip, uint8_t *dest_ip)
+static uint16_t udp_checksum(buf_t *buf, uint8_t *src_ip, uint8_t *dest_ip) 
 {
+    //1 zai diao yong zhi qian yao ba udp baotou de zhizhen cun xia lai 
+    udp_hdr_t *udp_t_head = (udp_hdr_t *) buf->data;//biao shi udp zhen de tou bu
+    uint16_t udp_total_len = udp_t_head->total_len;
     //首先调用buf_add_header()添加UDP伪头部
-    buf_add_header(buf,sizeof(udp_peso_hdr_t));
-    udp_peso_hdr_t * header = (udp_peso_hdr_t *)buf -> data;
-    //将IP头部拷贝出来，暂存被UDP伪头部覆盖的IP头部
+    buf_add_header(buf, sizeof(udp_peso_hdr_t));
+    udp_peso_hdr_t *header = (udp_peso_hdr_t *) buf->data;
+    // 将IP头部拷贝出来，暂存被UDP伪头部覆盖的IP头部
     udp_peso_hdr_t ip_head_temp;
     ip_head_temp = *header;
-    //填写UDP伪头部12字节字段
-    memcpy(header -> src_ip,src_ip,NET_IP_LEN);
-    memcpy(header -> dest_ip,dest_ip,NET_IP_LEN);
-    header -> placeholder = 0;
-    header -> protocol = ip_head_temp.protocol;
-    header -> total_len = swap16(buf ->len);
-
-    //计算校验和
+    //填写UDP伪头部的12字节字段
+    memcpy(header->src_ip, src_ip, NET_IP_LEN);
+    memcpy(header->dest_ip, dest_ip, NET_IP_LEN);
+    header->placeholder = 0;
+    header->protocol = NET_PROTOCOL_UDP;//zhe ge zhi shi ipv4 ding yi de
+    header->total_len = udp_total_len;
+    //计算UDP校验和，注意：UDP校验和覆盖了UDP头部、UDP数据和UDP伪头部
     uint16_t checksum_temp = checksum16((uint16_t *)buf->data,buf ->len);
-    
-    //将暂存的IP头部拷贝回来
+    // 5. 再将暂存的IP头部拷贝回来
     *header = ip_head_temp;
-    buf_remove_header(buf,sizeof(udp_peso_hdr_t));
-
+    //调用buf_remove_header()函数去掉UDP伪头部
+    buf_remove_header(buf, sizeof(udp_peso_hdr_t));
     return checksum_temp;
 
-    
 }
 
 /**
@@ -71,7 +71,7 @@ static uint16_t udp_checksum(buf_t *buf, uint8_t *src_ip, uint8_t *dest_ip)
  * @param buf 要处理的包
  * @param src_ip 源ip地址
  */
-void udp_in(buf_t *buf, uint8_t *src_ip)
+void udp_in(buf_t *buf, uint8_t *src_ip) 
 {
     udp_hdr_t  * header = (udp_hdr_t *)buf -> data;
     //首先需要检查udp报头长度
@@ -84,16 +84,23 @@ void udp_in(buf_t *buf, uint8_t *src_ip)
     header -> checksum = 0;
     header -> checksum = udp_checksum(buf,src_ip,net_if_ip);
 
+
     //比较计算后的校验和与之前缓存的checksum进行比较，如不相等，则不处理该数据报。
     if(header -> checksum != temp_checksum){
         return ;
     }
-    
-    //根据UDP数据报中的目的端口号查找udp_table，查看是否有该端口号对应的处理函数
+
+	//根据UDP数据报中的目的端口号查找udp_table，查看是否有该端口号对应的处理函数
     for(int i = 0;i < UDP_MAX_HANDLER;i ++){
         if(udp_table[i].valid == 1){//有效
             if(udp_table[i].port == swap16(header -> dest_port)){
                 //如果能找到，则去掉UDP包头，接着调用处理函数（回调函数）来做相应处理
+		//shan diao tian chong de 0
+		int len = swap16(header->total_len);
+		if(len < 46){
+		    buf->len = len;
+		}
+
                 buf_remove_header(buf,sizeof(udp_hdr_t));
                 (*udp_table[i].handler)(&udp_table[i],src_ip,header ->src_port,buf);
                 return ;
@@ -101,9 +108,11 @@ void udp_in(buf_t *buf, uint8_t *src_ip)
 
         }
     }
-    //如果不能找到，调用buf_add_header增加IPV4数据报头部，调用icmp_unreachable发送一个端口不可达的差错报文
-    buf_add_header(buf,sizeof(ip_hdr_t));
-    icmp_unreachable(buf,src_ip,ICMP_CODE_PORT_UNREACH);
+
+    // 如果没有找到，则调用buf_add_header()函数增加IP数据报头部(想一想，此处为什么要增加IP头部？？)  因为icmp接受的参数是ip数据报
+    // 然后调用icmp_unreachable() 函数发送一个端口不可达的ICMP差错报文。
+    buf_add_header(buf, sizeof(ip_hdr_t));
+    icmp_unreachable(buf, src_ip, ICMP_CODE_PORT_UNREACH);
 }
 
 /**
@@ -118,8 +127,8 @@ void udp_in(buf_t *buf, uint8_t *src_ip)
  * @param dest_ip 目的ip地址
  * @param dest_port 目的端口号
  */
-void udp_out(buf_t *buf, uint16_t src_port, uint8_t *dest_ip, uint16_t dest_port)
-{
+void udp_out(buf_t *buf, uint16_t src_port, uint8_t *dest_ip, uint16_t dest_port) {
+    
     //需要调用buf_add_header()函数增加UDP头部长度空间
     buf_add_header(buf,sizeof(udp_hdr_t));
     //填充udp首部字段
@@ -134,16 +143,13 @@ void udp_out(buf_t *buf, uint16_t src_port, uint8_t *dest_ip, uint16_t dest_port
 
     //将封装的UDP数据报发送到IP层
     ip_out(buf,dest_ip,NET_PROTOCOL_UDP);
-    
-
 }
 
 /**
  * @brief 初始化udp协议
  * 
  */
-void udp_init()
-{
+void udp_init() {
     for (int i = 0; i < UDP_MAX_HANDLER; i++)
         udp_table[i].valid = 0;
 }
@@ -155,19 +161,16 @@ void udp_init()
  * @param handler 处理程序
  * @return int 成功为0，失败为-1
  */
-int udp_open(uint16_t port, udp_handler_t handler)
-{
+int udp_open(uint16_t port, udp_handler_t handler) {
     for (int i = 0; i < UDP_MAX_HANDLER; i++) //试图更新
-        if (udp_table[i].port == port)
-        {
+        if (udp_table[i].port == port) {
             udp_table[i].handler = handler;
             udp_table[i].valid = 1;
             return 0;
         }
 
     for (int i = 0; i < UDP_MAX_HANDLER; i++) //试图插入
-        if (udp_table[i].valid == 0)
-        {
+        if (udp_table[i].valid == 0) {
             udp_table[i].handler = handler;
             udp_table[i].port = port;
             udp_table[i].valid = 1;
@@ -181,8 +184,7 @@ int udp_open(uint16_t port, udp_handler_t handler)
  * 
  * @param port 端口号
  */
-void udp_close(uint16_t port)
-{
+void udp_close(uint16_t port) {
     for (int i = 0; i < UDP_MAX_HANDLER; i++)
         if (udp_table[i].port == port)
             udp_table[i].valid = 0;
@@ -197,8 +199,7 @@ void udp_close(uint16_t port)
  * @param dest_ip 目的ip地址
  * @param dest_port 目的端口号
  */
-void udp_send(uint8_t *data, uint16_t len, uint16_t src_port, uint8_t *dest_ip, uint16_t dest_port)
-{
+void udp_send(uint8_t *data, uint16_t len, uint16_t src_port, uint8_t *dest_ip, uint16_t dest_port) {
     buf_init(&txbuf, len);
     memcpy(txbuf.data, data, len);
     udp_out(&txbuf, src_port, dest_ip, dest_port);
