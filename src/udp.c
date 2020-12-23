@@ -28,7 +28,7 @@ static udp_entry_t udp_table[UDP_MAX_HANDLER];
  */
 static uint16_t udp_checksum(buf_t *buf, uint8_t *src_ip, uint8_t *dest_ip) 
 {
-    //1 zai diao yong zhi qian yao ba udp baotou de zhizhen cun xia lai 
+    //在调用之前要把之前udp报头里存的udp长度存起来，之后要用
     udp_hdr_t *udp_t_head = (udp_hdr_t *) buf->data;//biao shi udp zhen de tou bu
     uint16_t udp_total_len = udp_t_head->total_len;
     //首先调用buf_add_header()添加UDP伪头部
@@ -41,7 +41,8 @@ static uint16_t udp_checksum(buf_t *buf, uint8_t *src_ip, uint8_t *dest_ip)
     memcpy(header->src_ip, src_ip, NET_IP_LEN);
     memcpy(header->dest_ip, dest_ip, NET_IP_LEN);
     header->placeholder = 0;
-    header->protocol = NET_PROTOCOL_UDP;//zhe ge zhi shi ipv4 ding yi de
+    //这个值是ipv4对应的，不是说ip报头给的
+    header->protocol = NET_PROTOCOL_UDP;
     header->total_len = udp_total_len;
     //计算UDP校验和，注意：UDP校验和覆盖了UDP头部、UDP数据和UDP伪头部
     uint16_t checksum_temp = checksum16((uint16_t *)buf->data,buf ->len);
@@ -95,12 +96,11 @@ void udp_in(buf_t *buf, uint8_t *src_ip)
         if(udp_table[i].valid == 1){//有效
             if(udp_table[i].port == swap16(header -> dest_port)){
                 //如果能找到，则去掉UDP包头，接着调用处理函数（回调函数）来做相应处理
-		//shan diao tian chong de 0
-		int len = swap16(header->total_len);
-		if(len < 46){
-		    buf->len = len;
-		}
-
+                //有可能在调试工具那里，因为不够46的长度，给补齐了，这里要把他们删掉
+                int len = swap16(header->total_len);
+                if(len < 46){
+                    buf->len = len;
+                }
                 buf_remove_header(buf,sizeof(udp_hdr_t));
                 (*udp_table[i].handler)(&udp_table[i],src_ip,header ->src_port,buf);
                 return ;
