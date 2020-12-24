@@ -82,7 +82,7 @@ void buf_copy(buf_t *dst, buf_t *src)
  */
 uint16_t checksum16(uint16_t *buf, int len)
 {
-    uint16_t ans = 0;
+    /*uint16_t ans = 0;
     uint32_t temp = 0;
     uint16_t * temp_buf = buf;
     int i ;
@@ -106,7 +106,21 @@ uint16_t checksum16(uint16_t *buf, int len)
     ans = ~(temp&0xffff);
 
     // //将上述和取反
-    return ans;
+    return ans;*/
+    long sum = 0;
+    while(len > 1){
+	sum += *(unsigned short *)buf ++;
+	len -= 2;
+    }
+    if(len > 0){
+	char left_over[2] = {0};
+	left_over[0] = *buf;
+	sum += *(unsigned short *)left_over;
+    }
+    while(sum >> 16){
+	sum = (sum & 0xffff) + (sum >> 16);
+    }
+    return ~sum;
 
  
 }

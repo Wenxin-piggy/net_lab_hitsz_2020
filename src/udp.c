@@ -88,7 +88,8 @@ void udp_in(buf_t *buf, uint8_t *src_ip)
 
     //比较计算后的校验和与之前缓存的checksum进行比较，如不相等，则不处理该数据报。
     if(header -> checksum != temp_checksum){
-        return ;
+        fprintf(stderr,"checksum error.\n");
+	return ;
     }
 
 	//根据UDP数据报中的目的端口号查找udp_table，查看是否有该端口号对应的处理函数
